@@ -10,6 +10,7 @@ This repository provides a GitHub Actions workflow that performs regression test
 
 - **GitHub Action Workflow**: Reusable workflow that accepts a revision input (tag or commit hash)
 - **Parameterized Python Version**: Test against different Python versions (default: 3.14)
+- **Input Reporting**: Prints all workflow inputs and resolved runtime values in job logs
 - **Regression Tests**: Tests the `greeter()` function with 5 Latin-based names:
   - Marcus
   - Julius
@@ -69,9 +70,10 @@ regression-test:
 
 1. Checks out the test repository
 2. Sets up the specified Python version
-3. Installs sb-gha-protolib from the specified revision
-4. Runs regression tests validating `greeter()` function behavior
-5. Reports test results with appropriate exit code
+3. Reports workflow inputs and concrete values used for the run
+4. Installs sb-gha-protolib from the specified revision
+5. Runs regression tests validating `greeter()` function behavior
+6. Reports test results with appropriate exit code
 
 ## Testing the Greet Module
 
