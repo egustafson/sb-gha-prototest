@@ -1,0 +1,110 @@
+# GitHub Actions Integration Guide
+
+## For sb-gha-protolib Repository
+
+You can invoke this regression test workflow from the sb-gha-protolib repository to test your changes.
+
+### Option 1: Call as a Reusable Workflow
+
+Add this to your sb-gha-protolib `.github/workflows/test.yml` (or similar):
+
+```yaml
+name: Test Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+
+jobs:
+  # ... your existing tests ...
+
+  regression-test:
+    name: Regression Tests
+    uses: egustafson/sb-gha-prototest/.github/workflows/regression-test.yml@main
+    with:
+      revision: ${{ github.sha }}  # Use the current commit
+```
+
+### Option 2: Test Specific Tags
+
+When you create a release/tag, you can test that specific version:
+
+```yaml
+jobs:
+  regression-test:
+    uses: egustafson/sb-gha-prototest/.github/workflows/regression-test.yml@main
+    with:
+      revision: ${{ github.ref_name }}  # Test the tag being released
+```
+
+### Option 3: Manual Trigger
+
+You can manually trigger the test workflow:
+
+```bash
+gh workflow run regression-test.yml \
+  -R egustafson/sb-gha-prototest \
+  -f revision=v0.2.0
+```
+
+## Workflow Behavior
+
+- **Input**: Accepts a git revision (tag or commit hash)
+- **Output**: Exit code 0 for success, 1 for failure
+- **Tests**: Validates `greeter()` function with 5 Latin-based names
+- **Duration**: Typically completes in under 1 minute
+
+## Integration Examples
+
+### Test on Each Push
+```yaml
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    uses: egustafson/sb-gha-prototest/.github/workflows/regression-test.yml@main
+    with:
+      revision: ${{ github.sha }}
+```
+
+### Test on Release
+```yaml
+on:
+  release:
+    types: [published]
+
+jobs:
+  test:
+    uses: egustafson/sb-gha-prototest/.github/workflows/regression-test.yml@main
+    with:
+      revision: ${{ github.event.release.tag_name }}
+```
+
+### Test on Pull Request
+```yaml
+on:
+  pull_request:
+
+jobs:
+  test:
+    uses: egustafson/sb-gha-prototest/.github/workflows/regression-test.yml@main
+    with:
+      revision: ${{ github.head_ref }}  # Test the PR branch
+```
+
+## Troubleshooting
+
+**Workflow not found**: Ensure the workflow file path is correct and uses the full path: `.github/workflows/regression-test.yml`
+
+**Permission denied**: Make sure the sb-gha-prototest repository is public or you have appropriate access.
+
+**Test failures**: Check the workflow logs in GitHub Actions to see which test case failed. Common issues:
+- Incorrect revision specified
+- Network issues pulling dependencies
+- Changes to the `greeter()` function signature

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sb-gha-prototest"
+version = "0.1.0"
+description = "Regression test suite for sb-gha-protolib greet module"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "sb-gha-protolib @ git+https://github.com/egustafson/sb-gha-protolib.git",
+]
+
+[tool.setuptools]
+py-modules = ["main"]
