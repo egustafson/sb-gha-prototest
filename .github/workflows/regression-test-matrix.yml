@@ -1,0 +1,122 @@
+name: Greet Module Regression Matrix Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Git tag or commit hash of sb-gha-protolib to test
+        required: true
+        type: string
+      latest-ga-python:
+        description: Latest GA Python version to include in matrix
+        required: false
+        default: "3.13"
+        type: string
+  workflow_call:
+    inputs:
+      revision:
+        description: Git tag or commit hash of sb-gha-protolib to test
+        required: true
+        type: string
+      latest-ga-python:
+        description: Latest GA Python version to include in matrix
+        required: false
+        default: "3.13"
+        type: string
+
+jobs:
+  build-matrix:
+    name: Build Python Version Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.matrix.outputs.versions }}
+      min-version: ${{ steps.matrix.outputs.min_version }}
+
+    steps:
+      - name: Report workflow inputs
+        run: |
+          echo "Workflow inputs for this run:"
+          echo "revision=${{ inputs.revision }}"
+          echo "latest-ga-python=${{ inputs.latest-ga-python }}"
+
+      - name: Build version matrix from library pyproject
+        id: matrix
+        env:
+          REVISION: ${{ inputs.revision }}
+          LATEST_GA: ${{ inputs.latest-ga-python }}
+        run: |
+          set -euo pipefail
+
+          curl -fsSL "https://raw.githubusercontent.com/egustafson/sb-gha-protolib/${REVISION}/pyproject.toml" -o pyproject.toml
+
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import tomllib
+
+          latest_ga = os.environ["LATEST_GA"]
+
+          with open("pyproject.toml", "rb") as f:
+              data = tomllib.load(f)
+
+          requires_python = data["project"]["requires-python"]
+          match = re.search(r">=\s*(\d+)\.(\d+)", requires_python)
+          if not match:
+              raise SystemExit(f"Could not parse minimum Python version from requires-python: {requires_python}")
+
+          min_major, min_minor = int(match.group(1)), int(match.group(2))
+          ga_parts = latest_ga.split(".")
+          if len(ga_parts) != 2:
+              raise SystemExit(f"latest-ga-python must be major.minor format, got: {latest_ga}")
+
+          ga_major, ga_minor = int(ga_parts[0]), int(ga_parts[1])
+          if (min_major, min_minor) > (ga_major, ga_minor):
+              raise SystemExit(
+                  f"Library minimum Python {min_major}.{min_minor} is greater than latest GA {ga_major}.{ga_minor}."
+              )
+
+          versions = [f"{major}.{minor}" for major in range(min_major, ga_major + 1) for minor in range(0, 100)]
+          versions = [v for v in versions if (int(v.split('.')[0]), int(v.split('.')[1])) >= (min_major, min_minor)]
+          versions = [v for v in versions if (int(v.split('.')[0]), int(v.split('.')[1])) <= (ga_major, ga_minor)]
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"versions={json.dumps(versions)}\n")
+              out.write(f"min_version={min_major}.{min_minor}\n")
+
+          print(f"Resolved requires-python: {requires_python}")
+          print(f"Resolved matrix versions: {versions}")
+          PY
+
+  regression-test-matrix:
+    name: Regression Test (Python ${{ matrix.python-version }})
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJson(needs.build-matrix.outputs.versions) }}
+
+    steps:
+      - name: Checkout test repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Report run context
+        run: |
+          echo "revision=${{ inputs.revision }}"
+          echo "latest-ga-python=${{ inputs.latest-ga-python }}"
+          echo "library-min-python=${{ needs.build-matrix.outputs.min-version }}"
+          echo "matrix-python-version=${{ matrix.python-version }}"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install "sb-gha-protolib @ git+https://github.com/egustafson/sb-gha-protolib.git@${{ inputs.revision }}"
+
+      - name: Run regression tests
+        run: python main.py

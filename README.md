@@ -4,11 +4,12 @@ Regression test suite for the `greet` module in [sb-gha-protolib](https://github
 
 ## Overview
 
-This repository provides a GitHub Actions workflow that performs regression testing on the `greeter()` function from the sb-gha-protolib repository. The workflow can be invoked from the protolib repository with a specific git tag or commit hash to test that revision.
+This repository provides GitHub Actions workflows that perform regression testing on the `greeter()` function from the sb-gha-protolib repository. The workflows can be invoked from the protolib repository with a specific git tag or commit hash to test that revision.
 
 ## Features
 
-- **GitHub Action Workflow**: Reusable workflow that accepts a revision input (tag or commit hash)
+- **Single-Version Workflow**: Reusable workflow that accepts a revision input (tag or commit hash)
+- **Matrix Workflow**: Reusable workflow that derives the minimum supported Python version from sb-gha-protolib and tests all versions through the latest GA Python release
 - **Parameterized Python Version**: Test against different Python versions (default: 3.14)
 - **Input Reporting**: Prints all workflow inputs and resolved runtime values in job logs
 - **Regression Tests**: Tests the `greeter()` function with 5 Latin-based names:
@@ -59,12 +60,31 @@ regression-test:
     python-version: "3.14"  # optional
 ```
 
+### GitHub Actions - Matrix Workflow
+
+Run regression tests across all supported Python versions from the library minimum to the latest GA version:
+
+```yaml
+regression-test-matrix:
+  uses: egustafson/sb-gha-prototest/.github/workflows/regression-test-matrix.yml@main
+  with:
+    revision: ${{ github.ref_name }}
+    latest-ga-python: "3.13"  # optional
+```
+
 ## Workflow Inputs
 
 | Input | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `revision` | string | Yes | — | Git tag or commit hash of sb-gha-protolib to test |
 | `python-version` | string | No | `3.14` | Python version to run tests with |
+
+### Matrix Workflow Inputs (`regression-test-matrix.yml`)
+
+| Input | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `revision` | string | Yes | — | Git tag or commit hash of sb-gha-protolib to test |
+| `latest-ga-python` | string | No | `3.13` | Latest GA Python version to include in the generated matrix |
 
 ## How It Works
 
@@ -93,7 +113,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release history and notable changes.
 
 ## Requirements
 
-- Python 3.14 (or specified version)
+- Python 3.10+ in matrix runs (based on sb-gha-protolib minimum support)
 - sb-gha-protolib repository accessible via GitHub
 
 ## License

@@ -2,7 +2,11 @@
 
 ## For sb-gha-protolib Repository
 
-You can invoke this regression test workflow from the sb-gha-protolib repository to test your changes.
+You can invoke regression test workflows from the sb-gha-protolib repository to test your changes.
+
+Available workflows:
+- `.github/workflows/regression-test.yml`: Single Python version regression test
+- `.github/workflows/regression-test-matrix.yml`: Matrix regression test from library minimum Python version through latest GA
 
 ### Option 1: Call as a Reusable Workflow
 
@@ -51,12 +55,31 @@ gh workflow run regression-test.yml \
   -f revision=v0.2.0
 ```
 
+### Option 4: Matrix Test Across Supported Python Versions
+
+Use the matrix workflow to test from the library's `requires-python` minimum through a selected latest GA Python version.
+
+```yaml
+jobs:
+  regression-test-matrix:
+    uses: egustafson/sb-gha-prototest/.github/workflows/regression-test-matrix.yml@main
+    with:
+      revision: ${{ github.sha }}
+      latest-ga-python: "3.13"  # optional
+```
+
 ## Workflow Behavior
 
-- **Input**: Accepts a git revision (tag or commit hash)
-- **Output**: Exit code 0 for success, 1 for failure
-- **Tests**: Validates `greeter()` function with 5 Latin-based names
-- **Duration**: Typically completes in under 1 minute
+- `regression-test.yml`
+  - **Input**: `revision`, optional `python-version`
+  - **Output**: Exit code 0 for success, 1 for failure
+  - **Tests**: Validates `greeter()` function with 5 Latin-based names
+  - **Duration**: Typically completes in under 1 minute
+
+- `regression-test-matrix.yml`
+  - **Input**: `revision`, optional `latest-ga-python`
+  - **Behavior**: Reads `requires-python` from sb-gha-protolib at the target revision, builds version matrix, runs regression test on each version
+  - **Output**: Matrix job succeeds only if all versions pass
 
 ## Integration Examples
 
@@ -67,10 +90,16 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  test-single:
     uses: egustafson/sb-gha-prototest/.github/workflows/regression-test.yml@main
     with:
       revision: ${{ github.sha }}
+
+  test-matrix:
+    uses: egustafson/sb-gha-prototest/.github/workflows/regression-test-matrix.yml@main
+    with:
+      revision: ${{ github.sha }}
+      latest-ga-python: "3.13"
 ```
 
 ### Test on Release
